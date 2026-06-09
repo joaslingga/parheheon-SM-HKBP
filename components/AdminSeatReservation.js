@@ -21,6 +21,7 @@ import { formatPrice, CATEGORY_ORDER } from "../lib/seatData";
 export default function AdminSeatReservation({
   categories,
   bookedSeatIds,
+  pendingSeatIds = [],
   seatStats,
   isAdmin,
 }) {
@@ -187,7 +188,7 @@ export default function AdminSeatReservation({
               <LayoutGrid size={22} /> Denah & Harga Kategori Kursi
             </h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "6px" }}>
-              Kursi kosong berwarna putih · Kursi terbeli berwarna biru
+              Kursi tersedia (warna zona) · Menunggu konfirmasi (kuning/orange) · Terkonfirmasi (putih)
             </p>
           </div>
           {isAdmin && (
@@ -333,7 +334,9 @@ export default function AdminSeatReservation({
         <SeatMap
           categories={activeCategories}
           bookedSeatIds={bookedSeatIds}
+          pendingSeatIds={pendingSeatIds}
           readOnly
+          showLegend={true}
           compact={false}
         />
       </div>

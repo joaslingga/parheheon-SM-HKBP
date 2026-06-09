@@ -3,6 +3,9 @@ import { getSession } from "../actions";
 import { redirect } from "next/navigation";
 import SuperadminDashboard from "../../components/SuperadminDashboard";
 
+// Force dynamic rendering since this page uses cookies for session management and database queries
+export const dynamic = "force-dynamic";
+
 export default async function SuAdminUtamaPage() {
   // 1. Authenticate & Authorize
   const session = await getSession();

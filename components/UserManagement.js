@@ -376,7 +376,6 @@ export default function UserManagement() {
                 <th style={{ width: "80px" }}>ID</th>
                 <th>Nama Lengkap</th>
                 <th>Username</th>
-                <th style={{ width: "120px" }}>Coin Balance</th>
                 <th style={{ width: "240px" }}>Hak Akses (Role)</th>
                 <th style={{ width: "100px", textAlign: "center" }}>Aksi</th>
               </tr>
@@ -390,11 +389,6 @@ export default function UserManagement() {
                     <span style={{ background: "#f1f5f9", padding: "4px 8px", borderRadius: "8px", fontSize: "0.85rem", color: "#475569", fontWeight: 600 }}>
                       @{user.username}
                     </span>
-                  </td>
-                  <td>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#fef3c7", color: "#d97706", padding: "4px 10px", borderRadius: "50px", fontSize: "0.85rem", fontWeight: 700 }}>
-                      💰 {user.coins || 0}
-                    </div>
                   </td>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -446,8 +440,7 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* CSS Spin Animation */}
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .spin-animation {
           animation: spin 1s linear infinite;
         }
@@ -455,7 +448,7 @@ export default function UserManagement() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

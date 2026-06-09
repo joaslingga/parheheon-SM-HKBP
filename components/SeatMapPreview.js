@@ -2,39 +2,56 @@
 
 import Link from "next/link";
 import SeatMap from "./SeatMap";
-import { Ticket, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { formatPrice } from "../lib/seatData";
 
-export default function SeatMapPreview({ categories, bookedSeatIds }) {
-  // Select a subset of seat categories to show in preview for a cleaner, compact look
-  // or just show the whole seat map but read-only and blurred.
+const seatSpecs = [
+  { name: "Kategori 1", price: 200000 },
+  { name: "Kategori 2", price: 100000 },
+  { name: "Kategori 3", price: 50000 },
+  { name: "Tribun 1", price: 100000 },
+  { name: "Tribun 2", price: 50000 },
+];
+
+export default function SeatMapPreview({ categories, bookedSeatIds, pendingSeatIds = [] }) {
   return (
-    <div className="preview-relative-wrapper" style={{ marginTop: "24px" }}>
-      {/* Background Seating Map (Semi-Visible/Blurred) */}
-      <div style={{ opacity: 0.35, pointerEvents: "none", filter: "blur(2px)" }}>
-        <SeatMap 
-          categories={categories} 
-          bookedSeatIds={bookedSeatIds} 
-          readOnly={true} 
-          showLegend={true}
-          compact={false}
-        />
-      </div>
-
-      {/* Glassmorphic Lock Overlay */}
-      <div className="preview-overlay-blur">
-        <div className="preview-lock-card">
-          <div className="preview-lock-icon">
-            <Ticket size={28} />
+    <div className="seat-booking-wrapper" style={{ marginTop: "24px" }}>
+      <div className="booking-container">
+        {/* Right column: Seating Chart Section */}
+        <div className="seating-section">
+          <div className="stage-label">PANGGUNG</div>
+          
+          <div className="seating-container">
+            <SeatMap
+              categories={categories}
+              bookedSeatIds={bookedSeatIds}
+              pendingSeatIds={pendingSeatIds}
+              selectedSeatIds={[]}
+              readOnly={true}
+              showLegend={true}
+            />
           </div>
-          <h3 className="preview-lock-title">Pemesanan Tiket Terkunci</h3>
-          <p className="preview-lock-desc">
-            Lihat area denah kursi dan pilih tempat duduk favorit Anda. Silakan masuk (Log In) atau daftar akun baru terlebih dahulu untuk memesan tiket.
-          </p>
-          <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-            <Link href="/login" className="btn btn-pulse-primary" style={{ width: "auto", display: "inline-flex", gap: "8px", padding: "12px 28px" }}>
-              Masuk Sekarang
+
+          {/* Door indicators */}
+          <div className="door-indicators">
+            <div className="door door-left">Pintu 4</div>
+            <div className="door door-right">Pintu 3</div>
+          </div>
+        </div>
+
+        {/* Bottom span: Login CTA */}
+        <div className="summary-section" style={{ gridColumn: "1 / span 2", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "20px" }}>
+          <div>
+            <h3 style={{ margin: 0, color: "var(--primary)", fontSize: "1.15rem", fontWeight: 800 }}>Pemesanan Tiket Terkunci</h3>
+            <p style={{ margin: "4px 0 0 0", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              Anda dapat melihat status keterisian kursi di atas. Silakan masuk (Log In) atau daftar akun baru terlebih dahulu untuk memesan tiket.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <Link href="/login" className="btn btn-pulse-primary" style={{ width: "auto", padding: "10px 24px", display: "inline-flex", gap: "6px", alignItems: "center" }}>
+              <Lock size={16} /> Masuk Sekarang
             </Link>
-            <Link href="/login?tab=register" className="btn btn-outline" style={{ width: "auto", display: "inline-flex", padding: "12px 28px" }}>
+            <Link href="/login?tab=register" className="btn btn-outline" style={{ width: "auto", padding: "10px 24px" }}>
               Daftar Akun
             </Link>
           </div>

@@ -1,19 +1,21 @@
 import db from "../lib/db";
-import { getSession } from "./actions";
 import Navbar from "../components/Navbar";
-import BookingForm from "../components/BookingForm";
-import VotingForm from "../components/VotingForm";
-import VotingFormNew from "../components/VotingFormNew";
-import TokenShop from "../components/TokenShop";
-import SeatMapPreview from "../components/SeatMapPreview";
-import TokenShopPreview from "../components/TokenShopPreview";
-import VotingPreview from "../components/VotingPreview";
-import { getSeatCategories, getBookedSeatIds } from "../lib/seatConfig";
+import ContentList from "../components/ContentList";
 import Link from "next/link";
-import { Mail, Phone, MapPin, CalendarRange, Info, Ticket, Award, ArrowRight, Sparkles, Users, Layers } from "lucide-react";
+import { Mail, Phone, MapPin, CalendarRange, Info, Ticket, ArrowRight, Users } from "lucide-react";
 
-// Force dynamic rendering since this page uses cookies for session management
-export const dynamic = "force-dynamic";
+const isVideo = (url) => {
+  if (!url) return false;
+  const cleanUrl = url.split("?")[0].split("#")[0].toLowerCase();
+  return (
+    cleanUrl.endsWith(".mp4") ||
+    cleanUrl.endsWith(".webm") ||
+    cleanUrl.endsWith(".ogg") ||
+    cleanUrl.endsWith(".mov") ||
+    (url.includes("/uploads/candidate-") && (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".webm"))) ||
+    (url.includes("/uploads/highlight-") && (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".webm")))
+  );
+};
 
 export default async function HomePage() {
   // 1. Fetch Session from cookie and verify user exists in database
@@ -38,51 +40,18 @@ export default async function HomePage() {
     console.error("Error reading session in homepage:", err);
   }
 
-  // 2. Fetch SQLite Data
+  // 2. Fetch Data
   const headerImage = (await db.prepare("SELECT value FROM settings WHERE key = 'header_image_url'").get())?.value || 
     "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1200&auto=format&fit=crop";
   const highlights = await db.prepare("SELECT * FROM highlights ORDER BY id DESC").all();
-  const candidates = await db.prepare("SELECT * FROM candidates ORDER BY id ASC").all();
   
   // Get stats banner image
   const statsImageUrl = (await db.prepare("SELECT value FROM settings WHERE key = 'stats_image_url'").get())?.value || 
     "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop";
 
-  // Fetch QRIS settings
-  const qrisRow = await db.prepare("SELECT TOP 1 * FROM qris_settings").get();
-
-
-  // Get voting categories and user coins
-  const votingCategories = await db.prepare("SELECT * FROM voting_categories ORDER BY order_index ASC").all();
-  let userCoins = 0;
-  
-  if (session) {
-    const userRow = await db.prepare("SELECT coins FROM users WHERE id = ?").get(session.id);
-    userCoins = userRow?.coins || 0;
-    // Update session with coins for navbar display
-    session.coins = userCoins;
-  }
-
-  let reservations = [];
-  let hasVoted = false;
-  const seatCategories = await getSeatCategories();
-  const bookedSeatIds = await getBookedSeatIds();
-
-  if (session) {
-    reservations = await db
-      .prepare(
-        `SELECT r.id, r.user_id, r.event_name, r.ticket_qty, r.status, r.payment_image_url, r.created_at,
-                COALESCE(SUM(sb.price), 0) as total_price
-         FROM reservations r
-         LEFT JOIN seat_bookings sb ON sb.reservation_id = r.id
-         WHERE r.user_id = ?
-         GROUP BY r.id, r.user_id, r.event_name, r.ticket_qty, r.status, r.payment_image_url, r.created_at
-         ORDER BY r.id DESC`
-      )
-      .all(session.id);
-    const vote = await db.prepare("SELECT id FROM votes WHERE user_id = ?").get(session.id);
-    hasVoted = !!vote;
-  }
+  // Fetch Content categories and items
+  const contentCategories = await db.prepare("SELECT * FROM voting_categories ORDER BY order_index ASC").all();
+  const contentItems = await db.prepare("SELECT * FROM voting_candidates ORDER BY id ASC").all();
 
   return (
     <div>
@@ -93,20 +62,6 @@ export default async function HomePage() {
           alt="Parheheon HKBP Ciputat Banner" 
           className="header-image"
         />
-        <div className="header-overlay" style={{ background: "linear-gradient(to bottom, rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.75))" }}>
-          <div className="hero-card">
-            <span className="hero-badge">
-              <Sparkles size={14} /> Festival & Perayaan Kebangkitan 2026
-            </span>
-            <h1 className="hero-title">Parheheon Sekolah Minggu</h1>
-            <p className="hero-desc">
-              Membina dan menumbuhkan iman anak-anak Sekolah Minggu HKBP Ciputat dalam sukacita dan kebersamaan.
-            </p>
-            <a href="#highlight" className="btn btn-secondary btn-pulse-primary" style={{ width: "auto", display: "inline-flex", gap: "8px", color: "white" }}>
-              Mulai Menjelajahi <ArrowRight size={18} />
-            </a>
-          </div>
-        </div>
       </header>
 
       {/* 2. Menubar / Navbar */}
@@ -121,7 +76,7 @@ export default async function HomePage() {
 
       {/* 3. Highlight Section */}
       <section id="highlight" className="section">
-        <h2 className="section-title">Highlight Acara</h2>
+        <h2 className="section-title">Highlight </h2>
         <p className="section-subtitle">
           Temukan berbagai rangkaian acara seru dan perlombaan yang diadakan selama festival Parheheon Sekolah Minggu tahun ini.
         </p>
@@ -130,11 +85,21 @@ export default async function HomePage() {
           {highlights.map((item, idx) => (
             <div key={item.id} className="highlight-card">
               <div className="highlight-img-container">
-                <img 
-                  src={item.image_url} 
-                  alt={item.title} 
-                  className="highlight-img" 
-                />
+                {isVideo(item.image_url) ? (
+                  <video 
+                    src={item.image_url} 
+                    controls 
+                    playsInline
+                    className="highlight-img" 
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <img 
+                    src={item.image_url} 
+                    alt={item.title} 
+                    className="highlight-img" 
+                  />
+                )}
                 <div style={{
                   position: "absolute",
                   top: "12px",
@@ -164,57 +129,184 @@ export default async function HomePage() {
       {/* Divider */}
       <div style={{ height: "1px", background: "var(--border)", maxWidth: "1200px", margin: "0 auto" }}></div>
 
-      {/* 4. Reservasi Section */}
+      {/* 3b. Content Section */}
+      <section id="content" className="section">
+        <h2 className="section-title">Content Anak</h2>
+        <p className="section-subtitle">
+          Saksikan berbagai penampilan, karya kreatif, dan dokumentasi festival anak Sekolah Minggu HKBP Ciputat.
+        </p>
+        <ContentList categories={contentCategories} items={contentItems} />
+      </section>
+
+      {/* Divider */}
+      <div style={{ height: "1px", background: "var(--border)", maxWidth: "1200px", margin: "0 auto" }}></div>
+
+      {/* 4. Reservasi Section — CTA ke halaman /reservasi */}
       <section id="reservasi" className="section">
         <h2 className="section-title">Pemesanan Tiket (Reservasi)</h2>
         <p className="section-subtitle">
-          Pesan tiket masuk acara puncak festival Parheheon secara online untuk keluarga dan anak Anda.
+          Pesan tiket masuk acara puncak festival Parheheon secara online. Pilih tempat duduk terbaik untuk keluarga Anda!
         </p>
 
-        {session ? (
-          <BookingForm
-            reservations={reservations}
-            seatCategories={seatCategories}
-            bookedSeatIds={bookedSeatIds}
-            qris={qrisRow}
-          />
-        ) : (
-          <SeatMapPreview categories={seatCategories} bookedSeatIds={bookedSeatIds} />
-        )}
-      </section>
+        <div className="reservasi-cta-card">
+          {/* Decorative blobs */}
+          <div className="reservasi-cta-blob reservasi-cta-blob-1" />
+          <div className="reservasi-cta-blob reservasi-cta-blob-2" />
 
-      {/* Divider */}
-      <div style={{ height: "1px", background: "var(--border)", maxWidth: "1200px", margin: "0 auto" }}></div>
+          <div className="reservasi-cta-icon">
+            <Ticket size={40} />
+          </div>
+          <h3 className="reservasi-cta-title">Buka Halaman Pemesanan Tiket</h3>
+          <p className="reservasi-cta-desc">
+            Lihat peta tempat duduk secara interaktif, pilih kursi favorit Anda, dan lakukan pembayaran via QRIS — semua dalam satu halaman khusus.
+          </p>
 
-      {/* 4. Token Shop Section */}
-      <section id="token-shop" className="section">
-        <h2 className="section-title">Pembelian Coin Voting</h2>
-        <p className="section-subtitle">
-          Dapatkan coin untuk memberikan vote kepada kandidat favorit Anda di setiap kategori voting.
-        </p>
+          <div className="reservasi-cta-features">
+            <div className="reservasi-cta-feature">
+              <span className="reservasi-cta-feature-icon">🎭</span>
+              <span>Peta Kursi Interaktif</span>
+            </div>
+            <div className="reservasi-cta-feature">
+              <span className="reservasi-cta-feature-icon">⚡</span>
+              <span>Pemesanan Instan</span>
+            </div>
+            <div className="reservasi-cta-feature">
+              <span className="reservasi-cta-feature-icon">📱</span>
+              <span>Bayar via QRIS</span>
+            </div>
+            <div className="reservasi-cta-feature">
+              <span className="reservasi-cta-feature-icon">✅</span>
+              <span>Konfirmasi Otomatis</span>
+            </div>
+          </div>
 
-        {session ? (
-          <TokenShop session={session} userCoins={userCoins} />
-        ) : (
-          <TokenShopPreview />
-        )}
-      </section>
+          <Link href="/reservasi" className="reservasi-cta-btn">
+            <Ticket size={20} />
+            Pesan Tiket Sekarang
+            <ArrowRight size={18} />
+          </Link>
 
-      {/* Divider */}
-      <div style={{ height: "1px", background: "var(--border)", maxWidth: "1200px", margin: "0 auto" }}></div>
+          {!session && (
+            <p className="reservasi-cta-note">
+              Sudah punya akun? <Link href="/login" style={{ color: "#fbbf24", fontWeight: 700 }}>Masuk dulu</Link> untuk langsung memesan.
+            </p>
+          )}
+        </div>
 
-      {/* 5. Voting Online Section */}
-      <section id="voting" className="section">
-        <h2 className="section-title">Voting Online</h2>
-        <p className="section-subtitle">
-          Dukung dan berikan apresiasi kepada penampilan kelas sekolah minggu terfavorit pilihan Anda.
-        </p>
-
-        {session ? (
-          <VotingFormNew categories={votingCategories} session={session} userCoins={userCoins} />
-        ) : (
-          <VotingPreview categories={votingCategories} />
-        )}
+        <style dangerouslySetInnerHTML={{ __html: `
+          .reservasi-cta-card {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #1e40af 100%);
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 20px 60px -10px rgba(30, 58, 138, 0.4);
+          }
+          .reservasi-cta-blob {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+          }
+          .reservasi-cta-blob-1 {
+            width: 400px; height: 400px;
+            top: -150px; right: -100px;
+            background: radial-gradient(circle, rgba(234,179,8,0.12) 0%, transparent 70%);
+          }
+          .reservasi-cta-blob-2 {
+            width: 300px; height: 300px;
+            bottom: -100px; left: -80px;
+            background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%);
+          }
+          .reservasi-cta-icon {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px; height: 80px;
+            background: rgba(234,179,8,0.2);
+            border: 2px solid rgba(234,179,8,0.35);
+            border-radius: 24px;
+            color: #fbbf24;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 24px rgba(234,179,8,0.2);
+          }
+          .reservasi-cta-title {
+            position: relative;
+            z-index: 1;
+            font-size: 2rem;
+            font-weight: 900;
+            color: white;
+            margin-bottom: 14px;
+          }
+          .reservasi-cta-desc {
+            position: relative;
+            z-index: 1;
+            font-size: 1rem;
+            color: rgba(255,255,255,0.72);
+            max-width: 520px;
+            margin: 0 auto 32px;
+            line-height: 1.6;
+          }
+          .reservasi-cta-features {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 36px;
+          }
+          .reservasi-cta-feature {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.9);
+          }
+          .reservasi-cta-feature-icon { font-size: 1rem; }
+          .reservasi-cta-btn {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #1c1917;
+            padding: 16px 40px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(245,158,11,0.4);
+            transition: all 0.25s ease;
+            margin-bottom: 20px;
+          }
+          .reservasi-cta-btn:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 12px 32px rgba(245,158,11,0.55);
+          }
+          .reservasi-cta-note {
+            position: relative;
+            z-index: 1;
+            color: rgba(255,255,255,0.55);
+            font-size: 0.88rem;
+            margin: 0;
+          }
+          @media (max-width: 640px) {
+            .reservasi-cta-card { padding: 40px 20px; }
+            .reservasi-cta-title { font-size: 1.5rem; }
+            .reservasi-cta-features { gap: 8px; }
+            .reservasi-cta-btn { padding: 14px 28px; font-size: 0.95rem; }
+          }
+        ` }} />
       </section>
 
       {/* Divider */}
@@ -253,7 +345,16 @@ export default async function HomePage() {
                 </div>
                 <div className="contact-text">
                   <h4>Nomor Telepon / WhatsApp</h4>
-                  <p>+62 812-3456-7890 (Sekretariat Sekolah Minggu)</p>
+                  <p>
+                    <a 
+                      href="https://wa.me/6281288468009" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="contact-wa-link"
+                    >
+                      +62 812-8846-8009 (WhatsApp Panitia)
+                    </a>
+                  </p>
                 </div>
               </div>
               <div className="contact-item">
@@ -315,7 +416,7 @@ export default async function HomePage() {
             <div className="footer-links-grid">
               <div>
                 <h4 style={{ color: "white", fontWeight: 700, marginBottom: "12px", fontSize: "0.95rem" }}>Navigasi</h4>
-                <style>{`
+                <style dangerouslySetInnerHTML={{ __html: `
                   .footer-nav-link {
                     display: block;
                     margin-bottom: 8px;
@@ -327,17 +428,26 @@ export default async function HomePage() {
                   .footer-nav-link:hover {
                     color: var(--secondary) !important;
                   }
-                `}</style>
-                {["#home", "#highlight", "#reservasi", "#voting"].map((href, i) => (
-                  <a key={href} href={href} className="footer-nav-link">
-                    {["Home", "Highlight", "Reservasi Tiket", "Voting Online"][i]}
-                  </a>
+                ` }} />
+                 {[["#home","Home"],["#highlight","Highlight"],["#content","Content"],["/reservasi","Reservasi Tiket"]].map(([href, label]) => (
+                  href.startsWith("/") 
+                    ? <Link key={href} href={href} className="footer-nav-link">{label}</Link>
+                    : <a key={href} href={href} className="footer-nav-link">{label}</a>
                 ))}
               </div>
               <div>
                 <h4 style={{ color: "white", fontWeight: 700, marginBottom: "12px", fontSize: "0.95rem" }}>Kontak</h4>
                 <p style={{ fontSize: "0.85rem", marginBottom: "8px" }}>📍 Ciputat, Tangerang Selatan</p>
-                <p style={{ fontSize: "0.85rem", marginBottom: "8px" }}>📞 +62 812-3456-7890</p>
+                <p style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
+                  <a 
+                    href="https://wa.me/6281288468009" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="footer-wa-link"
+                  >
+                    📞 +62 812-8846-8009 (WhatsApp)
+                  </a>
+                </p>
                 <p style={{ fontSize: "0.85rem" }}>✉️ sekolahminggu.ciputat@hkbp.or.id</p>
               </div>
             </div>
@@ -362,6 +472,7 @@ export default async function HomePage() {
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

@@ -14,7 +14,7 @@ const seatSpecs = [
   { name: "Tribun 2", seat: 16, totalBangku: 48, totalRow: 3, price: 50000 },
 ];
 
-export default function BookingForm({ reservations, seatCategories, bookedSeatIds, qris }) {
+export default function BookingForm({ reservations, seatCategories, bookedSeatIds, pendingSeatIds = [], qris }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -138,41 +138,6 @@ export default function BookingForm({ reservations, seatCategories, bookedSeatId
       )}
 
       <form onSubmit={handleBookTicket} className="booking-container">
-        {/* Left column: Info Section */}
-        <div className="info-section">
-          <div className="legend">
-            <h3>Keterangan Tempat Duduk</h3>
-            <div className="legend-items">
-              <div className="legend-item">
-                <span className="seat-legend available"></span>
-                <span>Tersedia</span>
-              </div>
-              <div className="legend-item">
-                <span className="seat-legend selected"></span>
-                <span>Dipilih</span>
-              </div>
-              <div className="legend-item">
-                <span className="seat-legend booked"></span>
-                <span>Terjual</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="price-info">
-            <h3>Harga Tiket</h3>
-            <table className="price-table">
-              <tbody>
-                {seatSpecs.map((item) => (
-                  <tr key={item.name}>
-                    <td className="category">{item.name}</td>
-                    <td className="price">{formatPrice(item.price)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {/* Right column: Seating Chart Section */}
         <div className="seating-section">
           <div className="stage-label">PANGGUNG</div>
@@ -181,6 +146,7 @@ export default function BookingForm({ reservations, seatCategories, bookedSeatId
             <SeatMap
               categories={seatCategories}
               bookedSeatIds={bookedSeatIds}
+              pendingSeatIds={pendingSeatIds}
               selectedSeatIds={selectedSeats}
               onSeatClick={handleSeatClick}
               showLegend={false}
@@ -391,7 +357,7 @@ export default function BookingForm({ reservations, seatCategories, bookedSeatId
         </div>
       )}
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -560,7 +526,7 @@ export default function BookingForm({ reservations, seatCategories, bookedSeatId
           from { transform: translateY(20px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

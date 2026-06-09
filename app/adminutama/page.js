@@ -4,9 +4,12 @@ import { redirect } from "next/navigation";
 import AdminDashboard from "../../components/AdminDashboard";
 import {
   getSeatCategories,
-  getBookedSeatIds,
+  getBookedSeatIdsByStatus,
   getSeatStats,
 } from "../../lib/seatConfig";
+
+// Force dynamic rendering since this page uses cookies for session management and database queries
+export const dynamic = "force-dynamic";
 
 export default async function AdminUtamaPage() {
   // 1. Authenticate & Authorize
@@ -30,32 +33,27 @@ export default async function AdminUtamaPage() {
     ORDER BY reservations.id DESC
   `).all();
 
-  // 3. Fetch Candidate Standings
-  const candidates = await db.prepare("SELECT * FROM candidates ORDER BY votes_count DESC").all();
-
   // 4. Fetch Statistics
   const reservationCount = (await db.prepare("SELECT COUNT(*) as count FROM reservations").get())?.count || 0;
   const pendingReservations = (await db.prepare("SELECT COUNT(*) as count FROM reservations WHERE status = 'pending'").get())?.count || 0;
   const approvedTickets = (await db.prepare("SELECT SUM(ticket_qty) as sum FROM reservations WHERE status = 'approved'").get())?.sum || 0;
-  const totalVotes = (await db.prepare("SELECT COUNT(*) as count FROM votes").get())?.count || 0;
   const seatCategories = await getSeatCategories();
-  const bookedSeatIds = await getBookedSeatIds();
+  const { pending: pendingSeatIds, approved: bookedSeatIds } = await getBookedSeatIdsByStatus();
   const seatStats = await getSeatStats();
 
   const stats = {
     reservationCount,
     pendingReservations,
     approvedTickets,
-    totalVotes,
   };
 
   return (
     <AdminDashboard 
       initialReservations={reservations} 
-      candidates={candidates} 
       stats={stats} 
       seatCategories={seatCategories}
       bookedSeatIds={bookedSeatIds}
+      pendingSeatIds={pendingSeatIds}
       seatStats={seatStats}
       session={session}
     />

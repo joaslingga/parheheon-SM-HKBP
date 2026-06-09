@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { logoutAction } from "../app/actions";
 import { 
@@ -15,16 +15,21 @@ import {
   Phone, 
   Ticket, 
   Award, 
-  Coins, 
   ChevronDown 
 } from "lucide-react";
 import { useState } from "react";
 
 export default function Navbar({ session }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [fiturOpen, setFiturOpen] = useState(false);
+
+  // Build href: on homepage use anchor (#home), on other pages use absolute (/#home)
+  const homeHref = isHome ? "#home" : "/#home";
+  const highlightHref = isHome ? "#highlight" : "/#highlight";
+  const contentHref = isHome ? "#content" : "/#content";
+  const reservasiActive = pathname === "/reservasi";
 
   async function handleLogout() {
     await logoutAction();
@@ -56,122 +61,31 @@ export default function Navbar({ session }) {
 
         {/* Desktop Menu */}
         <ul className={`nav-menu ${mobileMenuOpen ? "mobile-open" : ""}`}>
-          {/* Coin Badge — ditampilkan di sebelah kiri Home jika user login */}
-          {session && session.role === "user" && (
-            <li>
-              <div
-                id="navbar-coin-badge"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "linear-gradient(135deg, #FDB462, #FB8500)",
-                  color: "white",
-                  padding: "6px 14px",
-                  borderRadius: "20px",
-                  fontSize: "0.88rem",
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  boxShadow: "0 3px 10px rgba(251,133,0,0.35)",
-                  letterSpacing: "0.02em",
-                  cursor: "default",
-                  userSelect: "none",
-                }}
-                title="Jumlah Coin yang Anda miliki"
-              >
-                💰 {session.coins !== undefined ? session.coins : 0} Coin
-              </div>
-            </li>
-          )}
 
-          {/* Dropdown 1: Informasi Acara */}
-          <li className="navbar-item-dropdown">
-            <div 
-              className="nav-link dropdown-trigger" 
-              onClick={() => {
-                if (window.innerWidth <= 767) {
-                  setInfoOpen(!infoOpen);
-                  setFiturOpen(false);
-                }
-              }}
-            >
-              <span>Informasi Acara</span>
-              <ChevronDown size={14} className="dropdown-chevron" />
-            </div>
-            <div className={`dropdown-menu ${infoOpen ? "mobile-open" : ""}`}>
-              <a href="#home" className="dropdown-item" onClick={() => setMobileMenuOpen(false)}>
-                <div className="dropdown-item-icon" style={{ background: "rgba(59, 130, 246, 0.08)", color: "#3b82f6" }}>
-                  <Home size={18} />
-                </div>
-                <div className="dropdown-item-content">
-                  <span className="dropdown-item-title">Beranda</span>
-                  <span className="dropdown-item-desc">Halaman utama & sambutan panitia</span>
-                </div>
-              </a>
-              <a href="#highlight" className="dropdown-item" onClick={() => setMobileMenuOpen(false)}>
-                <div className="dropdown-item-icon" style={{ background: "rgba(234, 179, 8, 0.08)", color: "#eab308" }}>
-                  <Sparkles size={18} />
-                </div>
-                <div className="dropdown-item-content">
-                  <span className="dropdown-item-title">Highlight Acara</span>
-                  <span className="dropdown-item-desc">Rangkaian kegiatan festival menarik</span>
-                </div>
-              </a>
-              <a href="#kontak" className="dropdown-item" onClick={() => setMobileMenuOpen(false)}>
-                <div className="dropdown-item-icon" style={{ background: "rgba(34, 197, 94, 0.08)", color: "#22c55e" }}>
-                  <Phone size={18} />
-                </div>
-                <div className="dropdown-item-content">
-                  <span className="dropdown-item-title">Hubungi Kami</span>
-                  <span className="dropdown-item-desc">Alamat gereja & kontak sekretariat</span>
-                </div>
-              </a>
-            </div>
+
+          <li>
+            <a href={homeHref} className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+              Beranda
+            </a>
           </li>
-
-          {/* Dropdown 2: Fitur Interaktif */}
-          <li className="navbar-item-dropdown">
-            <div 
-              className="nav-link dropdown-trigger"
-              onClick={() => {
-                if (window.innerWidth <= 767) {
-                  setFiturOpen(!fiturOpen);
-                  setInfoOpen(false);
-                }
-              }}
+          <li>
+            <a href={highlightHref} className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+              Highlight 
+            </a>
+          </li>
+          <li>
+            <a href={contentHref} className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+              Content
+            </a>
+          </li>
+          <li>
+            <Link
+              href="/reservasi"
+              className={`nav-link${reservasiActive ? " nav-link-active" : ""}`}
+              onClick={() => setMobileMenuOpen(false)}
             >
-              <span>Fitur Layanan</span>
-              <ChevronDown size={14} className="dropdown-chevron" />
-            </div>
-            <div className={`dropdown-menu ${fiturOpen ? "mobile-open" : ""}`}>
-              <a href="#reservasi" className="dropdown-item" onClick={() => setMobileMenuOpen(false)}>
-                <div className="dropdown-item-icon" style={{ background: "rgba(99, 102, 241, 0.08)", color: "#6366f1" }}>
-                  <Ticket size={18} />
-                </div>
-                <div className="dropdown-item-content">
-                  <span className="dropdown-item-title">Pesan Tiket (Reservasi)</span>
-                  <span className="dropdown-item-desc">Pesan nomor kursi nonton festival</span>
-                </div>
-              </a>
-              <a href="#token-shop" className="dropdown-item" onClick={() => setMobileMenuOpen(false)}>
-                <div className="dropdown-item-icon" style={{ background: "rgba(251, 133, 0, 0.08)", color: "#fb8500" }}>
-                  <Coins size={18} />
-                </div>
-                <div className="dropdown-item-content">
-                  <span className="dropdown-item-title">Beli Coin Dukungan</span>
-                  <span className="dropdown-item-desc">Top up koin voting untuk kelas favorit</span>
-                </div>
-              </a>
-              <a href="#voting" className="dropdown-item" onClick={() => setMobileMenuOpen(false)}>
-                <div className="dropdown-item-icon" style={{ background: "rgba(244, 63, 94, 0.08)", color: "#f43f5e" }}>
-                  <Award size={18} />
-                </div>
-                <div className="dropdown-item-content">
-                  <span className="dropdown-item-title">Voting Online</span>
-                  <span className="dropdown-item-desc">Dukung penampilan kelas sekolah minggu</span>
-                </div>
-              </a>
-            </div>
+              Reservasi Tiket
+            </Link>
           </li>
 
           {session ? (
@@ -252,7 +166,7 @@ export default function Navbar({ session }) {
         </button>
       </div>
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         /* Navigation dropdown styling */
         .navbar-item-dropdown {
           position: relative;
@@ -377,11 +291,24 @@ export default function Navbar({ session }) {
             top: 100%;
             left: 0;
             background: white;
-            padding: 20px;
-            box-shadow: var(--shadow-md);
+            padding: 24px;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+            border-bottom: 2px solid #e2e8f0;
             gap: 16px;
             align-items: flex-start;
             z-index: 999;
+            animation: slideDownMenu 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+
+          @keyframes slideDownMenu {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
           }
           .user-badge {
             flex-direction: column;
@@ -418,7 +345,7 @@ export default function Navbar({ session }) {
             padding: 8px 12px;
           }
         }
-      `}</style>
+      ` }} />
     </nav>
   );
 }

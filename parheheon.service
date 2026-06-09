@@ -1,0 +1,21 @@
+[Unit]
+Description=Parheheon Next.js Application Service
+After=network.target mssql-server.service
+
+[Service]
+Type=simple
+User=wmjoas
+WorkingDirectory=/home/wmjoas/parheheon-sm-HKBP
+# Menggunakan path absolute Node.js dari NVM milik user wmjoas
+ExecStart=/home/wmjoas/.nvm/versions/node/v20.20.2/bin/node /home/wmjoas/parheheon-sm-HKBP/node_modules/.bin/next start -p 3000
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=parheheon-app
+
+# Mengambil environment variable dari berkas .env
+EnvironmentFile=/home/wmjoas/parheheon-sm-HKBP/.env
+
+[Install]
+WantedBy=multi-user.target

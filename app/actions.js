@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import db from "../lib/db";
 import fs from "fs";
 import path from "path";
+import { exec } from "child_process";
 import {
   CATEGORY_ORDER,
   defaultSeatCategories,
@@ -316,6 +317,8 @@ export async function approveReservationAction(id) {
   try {
     await db.prepare("UPDATE reservations SET status = 'approved' WHERE id = ?").run(id);
     revalidatePath("/adminutama");
+    revalidatePath("/reservasi");
+    revalidatePath("/");
     return { success: true };
   } catch (error) {
     console.error("Approve reservation error:", error);
@@ -334,6 +337,7 @@ export async function deleteReservationAction(id) {
     await db.prepare("DELETE FROM reservations WHERE id = ?").run(id);
     await db.prepare("DELETE FROM seat_bookings WHERE reservation_id = ?").run(id);
     revalidatePath("/adminutama");
+    revalidatePath("/reservasi");
     revalidatePath("/");
     return { success: true };
   } catch (error) {
@@ -443,68 +447,6 @@ export async function resetSeatLayoutAction() {
   }
 }
 
-// Cast Vote action (Voting Online)
-export async function castVoteAction(prevState, formData) {
-  const session = await getSession();
-  if (!session) {
-    return { error: "Anda harus login untuk melakukan voting." };
-  }
-
-  const candidateId = parseInt(formData.get("candidateId")?.toString(), 10);
-
-  if (!candidateId) {
-    return { error: "Silakan pilih salah satu kandidat." };
-  }
-
-  try {
-    // Check if user has already voted
-    const existing = await db.prepare("SELECT id FROM votes WHERE user_id = ?").get(session.id);
-    if (existing) {
-      return { error: "Anda sudah menggunakan hak suara Anda. Setiap user hanya dapat melakukan voting satu kali." };
-    }
-
-    // Insert vote and increment candidate count in transaction
-    const insertVote = db.prepare("INSERT INTO votes (user_id, candidate_id, created_at) VALUES (?, ?, ?)");
-    const incrementCount = db.prepare("UPDATE candidates SET votes_count = votes_count + 1 WHERE id = ?");
-
-    const runTransaction = db.transaction(async (uId, cId, date) => {
-      await insertVote.run(uId, cId, date);
-      await incrementCount.run(cId);
-    });
-
-    await runTransaction(session.id, candidateId, new Date().toLocaleString("id-ID"));
-
-    revalidatePath("/");
-    revalidatePath("/adminutama");
-    return { success: "Suara Anda berhasil dikirim! Terima kasih." };
-  } catch (error) {
-    console.error("Voting error:", error);
-    return { error: "Gagal mengirimkan suara Anda." };
-  }
-}
-
-// Reset votes (for Admin)
-export async function resetVotesAction() {
-  const session = await getSession();
-  if (!session || (session.role !== "admin" && session.role !== "superadmin")) {
-    return { error: "Unauthorized access." };
-  }
-
-  try {
-    const runTransaction = db.transaction(async () => {
-      await db.prepare("DELETE FROM votes").run();
-      await db.prepare("UPDATE candidates SET votes_count = 0").run();
-    });
-    await runTransaction();
-    revalidatePath("/adminutama");
-    revalidatePath("/");
-    return { success: true };
-  } catch (error) {
-    console.error("Reset votes error:", error);
-    return { error: "Gagal mereset voting." };
-  }
-}
-
 // Update Header Image URL (Superadmin)
 export async function updateHeaderImageAction(prevState, formData) {
   const session = await getSession();
@@ -597,372 +539,6 @@ export async function deleteHighlightAction(id) {
   }
 }
 
-// ========== NEW VOTING SYSTEM WITH TOKENS ==========
-
-// Voting actions
-export async function submitVoteAction(user_id, candidate_id, category_id) {
-  try {
-    const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(user_id);
-    if (!user) {
-      return { success: false, error: "User not found" };
-    }
-
-    const userCoins = user.coins || 0;
-    if (userCoins <= 0) {
-      return {
-        success: false,
-        error: "Tidak cukup coin",
-        message: "Beli coin terlebih dahulu untuk voting",
-      };
-    }
-
-    const candidate = await db.prepare(
-      "SELECT * FROM voting_candidates WHERE id = ?"
-    ).get(candidate_id);
-
-    if (!candidate) {
-      return { success: false, error: "Candidate not found" };
-    }
-
-    const category = await db.prepare(
-      "SELECT * FROM voting_categories WHERE id = ?"
-    ).get(category_id);
-
-    if (!category) {
-      return { success: false, error: "Category not found" };
-    }
-
-    // Execute vote
-    await db.prepare(
-      "INSERT INTO voting_records (user_id, candidate_id, category_id, created_at) VALUES (?, ?, ?, ?)"
-    ).run(user_id, candidate_id, category_id, new Date().toISOString());
-
-    await db.prepare("UPDATE users SET coins = coins - 1 WHERE id = ?").run(user_id);
-    await db.prepare(
-      "UPDATE voting_candidates SET votes_count = votes_count + 1 WHERE id = ?"
-    ).run(candidate_id);
-
-    const updatedCandidate = await db.prepare(
-      "SELECT * FROM voting_candidates WHERE id = ?"
-    ).get(candidate_id);
-
-    const updatedUser = await db.prepare("SELECT coins FROM users WHERE id = ?").get(
-      user_id
-    );
-
-    revalidatePath("/");
-    return {
-      success: true,
-      message: `Vote untuk ${candidate.name} berhasil!`,
-      data: {
-        candidate_id,
-        category_id,
-        votes_count: updatedCandidate.votes_count,
-        remaining_coins: updatedUser.coins,
-      },
-    };
-  } catch (err) {
-    console.error("Vote error:", err);
-    return { success: false, error: "Gagal memproses vote" };
-  }
-}
-
-// Get voting candidates by category
-export async function getVotingCandidatesAction(category_id) {
-  try {
-    const candidates = await db.prepare(
-      "SELECT * FROM voting_candidates WHERE category_id = ? ORDER BY id ASC"
-    ).all(category_id);
-
-    return { success: true, candidates };
-  } catch (err) {
-    console.error("Get candidates error:", err);
-    return { success: false, error: "Gagal mengambil data kandidat", candidates: [] };
-  }
-}
-
-// Get voted categories for user
-export async function getUserVotedCategoriesAction(user_id) {
-  try {
-    const votes = await db.prepare(
-      "SELECT DISTINCT category_id FROM voting_records WHERE user_id = ?"
-    ).all(user_id);
-
-    return {
-      success: true,
-      votedCategories: votes.map(v => v.category_id),
-    };
-  } catch (err) {
-    console.error("Get voted categories error:", err);
-    return { success: false, error: "Gagal mengambil data", votedCategories: [] };
-  }
-}
-
-// Get user coin balance
-export async function getUserCoinBalanceAction(user_id) {
-  try {
-    const user = await db.prepare("SELECT coins FROM users WHERE id = ?").get(user_id);
-    return { success: true, coins: user?.coins || 0 };
-  } catch (err) {
-    console.error("Get coin balance error:", err);
-    return { success: false, coins: 0 };
-  }
-}
-
-// Get all voting categories
-export async function getVotingCategoriesAction() {
-  try {
-    const categories = await db.prepare(
-      "SELECT * FROM voting_categories ORDER BY order_index ASC"
-    ).all();
-
-    return { success: true, categories };
-  } catch (err) {
-    console.error("Get categories error:", err);
-    return { success: false, error: "Gagal mengambil kategori", categories: [] };
-  }
-}
-
-// ========== TOKEN/COIN SYSTEM ==========
-
-// Create token purchase transaction
-export async function createTokenPurchaseAction(user_id, coin_amount) {
-  try {
-    const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(user_id);
-    if (!user) {
-      return { success: false, error: "User not found" };
-    }
-
-    const amount = coin_amount * 10000; // 1 coin = 10000
-    
-    const result = await db.prepare(
-      "INSERT INTO token_transactions (user_id, amount, coins_amount, status, created_at) VALUES (?, ?, ?, 'pending', ?)"
-    ).run(user_id, amount, coin_amount, new Date().toISOString());
-
-    return {
-      success: true,
-      transaction_id: result.lastInsertRowid,
-      message: `Pemesanan ${coin_amount} coin senilai Rp ${amount.toLocaleString('id-ID')} berhasil dibuat`,
-      data: {
-        transaction_id: result.lastInsertRowid,
-        amount,
-        coins_amount: coin_amount,
-        user_name: user.name,
-      },
-    };
-  } catch (err) {
-    console.error("Create token purchase error:", err);
-    return { success: false, error: "Gagal membuat pemesanan" };
-  }
-}
-
-// Upload payment proof and verify
-export async function uploadPaymentProofAction(formData) {
-  try {
-    const transaction_id = formData.get("transactionId");
-    const file = formData.get("paymentProof");
-
-    if (!transaction_id) {
-      return { success: false, error: "ID transaksi tidak valid" };
-    }
-
-    if (!file || typeof file === "string" || file.size === 0) {
-      return { success: false, error: "File bukti pembayaran tidak valid" };
-    }
-
-    const uploadedPath = await saveUploadedFile(file, "payment");
-    if (!uploadedPath) {
-      return { success: false, error: "Gagal menyimpan file bukti pembayaran" };
-    }
-
-    // Update transaction with payment image
-    const transaction = await db.prepare(
-      "SELECT * FROM token_transactions WHERE id = ?"
-    ).get(transaction_id);
-
-    if (!transaction) {
-      return { success: false, error: "Transaksi tidak ditemukan" };
-    }
-
-    if (transaction.status !== "pending") {
-      return { success: false, error: "Transaksi sudah diproses" };
-    }
-
-    await db.prepare(
-      "UPDATE token_transactions SET payment_image_url = ? WHERE id = ?"
-    ).run(uploadedPath, transaction_id);
-
-    revalidatePath("/");
-    revalidatePath("/adminutama");
-
-    return {
-      success: true,
-      message: "Bukti pembayaran berhasil diunggah. Tunggu konfirmasi dari admin.",
-      data: {
-        transaction_id,
-        payment_image: uploadedPath,
-        status: "pending",
-      },
-    };
-  } catch (err) {
-    console.error("Upload payment proof error:", err);
-    return { success: false, error: "Gagal mengunggah bukti pembayaran" };
-  }
-}
-
-// Get user pending transactions
-export async function getUserPendingTransactionsAction(user_id) {
-  try {
-    const transactions = await db.prepare(
-      "SELECT * FROM token_transactions WHERE user_id = ? AND status = 'pending' ORDER BY created_at DESC"
-    ).all(user_id);
-
-    return { success: true, transactions };
-  } catch (err) {
-    console.error("Get pending transactions error:", err);
-    return { success: false, transactions: [] };
-  }
-}
-
-// Admin: Get all pending transactions
-export async function getAdminPendingTransactionsAction() {
-  const session = await getSession();
-  if (!session || (session.role !== "admin" && session.role !== "superadmin")) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  try {
-    const transactions = await db.prepare(
-      `SELECT tt.*, u.name as user_name, u.username
-       FROM token_transactions tt
-       JOIN users u ON tt.user_id = u.id
-       WHERE tt.status = 'pending'
-       ORDER BY tt.created_at DESC`
-    ).all();
-
-    return { success: true, transactions };
-  } catch (err) {
-    console.error("Get admin transactions error:", err);
-    return { success: false, transactions: [] };
-  }
-}
-
-// Admin: Get all transactions (with filtering)
-export async function getAdminAllTransactionsAction(status = null) {
-  const session = await getSession();
-  if (!session || (session.role !== "admin" && session.role !== "superadmin")) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  try {
-    let query = `SELECT tt.*, u.name as user_name, u.username
-                 FROM token_transactions tt
-                 JOIN users u ON tt.user_id = u.id`;
-    const params = [];
-
-    if (status) {
-      query += ` WHERE tt.status = ?`;
-      params.push(status);
-    }
-
-    query += ` ORDER BY tt.created_at DESC`;
-
-    const transactions = params.length > 0 
-      ? await db.prepare(query).all(...params)
-      : await db.prepare(query).all();
-
-    return { success: true, transactions };
-  } catch (err) {
-    console.error("Get all transactions error:", err);
-    return { success: false, transactions: [] };
-  }
-}
-
-// Admin: Approve token transaction
-export async function approveTokenTransactionAction(transaction_id) {
-  const session = await getSession();
-  if (!session || (session.role !== "admin" && session.role !== "superadmin")) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  try {
-    const transaction = await db.prepare(
-      "SELECT * FROM token_transactions WHERE id = ?"
-    ).get(transaction_id);
-
-    if (!transaction) {
-      return { success: false, error: "Transaksi tidak ditemukan" };
-    }
-
-    if (transaction.status !== "pending") {
-      return { success: false, error: "Transaksi sudah diproses" };
-    }
-
-    // Update transaction status and verified info
-    await db.prepare(
-      "UPDATE token_transactions SET status = 'verified', verified_at = ?, verified_by_admin_id = ? WHERE id = ?"
-    ).run(new Date().toISOString(), session.id, transaction_id);
-
-    // Add coins to user
-    await db.prepare(
-      "UPDATE users SET coins = coins + ? WHERE id = ?"
-    ).run(transaction.coins_amount, transaction.user_id);
-
-    revalidatePath("/");
-    revalidatePath("/adminutama");
-
-    return {
-      success: true,
-      message: `Transaksi approved! ${transaction.coins_amount} coin ditambahkan ke akun user.`,
-      data: {
-        transaction_id,
-        coins_added: transaction.coins_amount,
-      },
-    };
-  } catch (err) {
-    console.error("Approve transaction error:", err);
-    return { success: false, error: "Gagal menyetujui transaksi" };
-  }
-}
-
-// Admin: Reject token transaction
-export async function rejectTokenTransactionAction(transaction_id, reason = "") {
-  const session = await getSession();
-  if (!session || (session.role !== "admin" && session.role !== "superadmin")) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  try {
-    const transaction = await db.prepare(
-      "SELECT * FROM token_transactions WHERE id = ?"
-    ).get(transaction_id);
-
-    if (!transaction) {
-      return { success: false, error: "Transaksi tidak ditemukan" };
-    }
-
-    if (transaction.status !== "pending") {
-      return { success: false, error: "Transaksi sudah diproses" };
-    }
-
-    // Update transaction status
-    await db.prepare(
-      "UPDATE token_transactions SET status = 'rejected', verified_at = ?, verified_by_admin_id = ? WHERE id = ?"
-    ).run(new Date().toISOString(), session.id, transaction_id);
-
-    revalidatePath("/");
-    revalidatePath("/adminutama");
-
-    return {
-      success: true,
-      message: "Transaksi ditolak",
-      data: { transaction_id },
-    };
-  } catch (err) {
-    console.error("Reject transaction error:", err);
-    return { success: false, error: "Gagal menolak transaksi" };
-  }
-}
 
 // Get QRIS settings
 export async function getQRISSettingsAction() {
@@ -1142,7 +718,7 @@ export async function getAllUsersAction() {
   }
 
   try {
-    const users = await db.prepare("SELECT id, name, username, role, coins FROM users ORDER BY id ASC").all();
+    const users = await db.prepare("SELECT id, name, username, role FROM users ORDER BY id ASC").all();
     return { success: true, users };
   } catch (err) {
     console.error("Get all users error:", err);
@@ -1193,19 +769,12 @@ export async function deleteUserAction(userId) {
   }
 
   try {
-    // Delete user's votes and reservations first to maintain foreign key integrity
-    await db.prepare("DELETE FROM votes WHERE user_id = ?").run(userId);
-    await db.prepare("DELETE FROM voting_records WHERE user_id = ?").run(userId);
-    
     // Find all reservations for this user and delete their seat bookings
     const userReservations = await db.prepare("SELECT id FROM reservations WHERE user_id = ?").all(userId);
     for (const res of userReservations) {
       await db.prepare("DELETE FROM seat_bookings WHERE reservation_id = ?").run(res.id);
     }
     await db.prepare("DELETE FROM reservations WHERE user_id = ?").run(userId);
-    
-    // Delete token transactions
-    await db.prepare("DELETE FROM token_transactions WHERE user_id = ?").run(userId);
 
     // Finally delete the user
     await db.prepare("DELETE FROM users WHERE id = ?").run(userId);
@@ -1217,6 +786,64 @@ export async function deleteUserAction(userId) {
   } catch (err) {
     console.error("Delete user error:", err);
     return { success: false, error: "Gagal menghapus pengguna." };
+  }
+}
+
+// Restart Server Action (Superadmin only)
+export async function restartServerAction() {
+  const session = await getSession();
+  if (!session || session.role !== "superadmin") {
+    return { success: false, error: "Akses ditolak. Hanya Superadmin yang memiliki izin." };
+  }
+
+  try {
+    console.log(`[SYSTEM] Restart initiated by ${session.username}`);
+    setTimeout(() => {
+      process.exit(0);
+    }, 1000);
+    return { 
+      success: true, 
+      message: "Perintah restart berhasil dikirim. Server akan restart dalam beberapa detik." 
+    };
+  } catch (err) {
+    console.error("Restart server error:", err);
+    return { success: false, error: "Gagal memproses restart server." };
+  }
+}
+
+// Shutdown Server Action (Superadmin only)
+export async function shutdownServerAction() {
+  const session = await getSession();
+  if (!session || session.role !== "superadmin") {
+    return { success: false, error: "Akses ditolak. Hanya Superadmin yang memiliki izin." };
+  }
+
+  try {
+    console.log(`[SYSTEM] Shutdown initiated by ${session.username}`);
+    
+    const pmName = process.env.name || "parheheon-app";
+    const isPM2 = process.env.pm_id !== undefined || process.env.PM2_HOME !== undefined;
+    
+    setTimeout(() => {
+      if (isPM2) {
+        exec(`pm2 stop ${pmName}`, (err) => {
+          if (err) {
+            console.error("Failed to stop PM2 process, forcing exit:", err);
+            process.exit(0);
+          }
+        });
+      } else {
+        process.exit(0);
+      }
+    }, 1000);
+    
+    return { 
+      success: true, 
+      message: "Perintah shutdown berhasil dikirim. Server akan dimatikan." 
+    };
+  } catch (err) {
+    console.error("Shutdown server error:", err);
+    return { success: false, error: "Gagal memproses shutdown server." };
   }
 }
 
