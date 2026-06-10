@@ -207,6 +207,70 @@ export default function SuperadminDashboard({
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--bg-base)" }}>
+      {/* Premium Glassmorphism Upload Loading Overlay */}
+      {formLoading && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(15, 23, 42, 0.75)",
+          backdropFilter: "blur(12px)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 9999,
+          color: "white",
+          animation: "fadeIn 0.3s ease-out"
+        }}>
+          <div style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            borderRadius: "24px",
+            padding: "40px 60px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "24px",
+            maxWidth: "90%",
+            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.3)",
+          }}>
+            <div className="upload-spinner" style={{
+              width: "70px",
+              height: "70px",
+              borderRadius: "50%",
+              border: "4px solid rgba(255, 255, 255, 0.1)",
+              borderTopColor: "var(--secondary)",
+              borderRightColor: "var(--secondary)",
+              animation: "spin 1s linear infinite"
+            }} />
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <h3 style={{ fontSize: "1.5rem", fontWeight: 800, color: "white", margin: 0, fontFamily: "var(--font-title)" }}>
+                Sedang Mengunggah & Memproses...
+              </h3>
+              <p style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.95rem", maxWidth: "320px", lineHeight: "1.5" }}>
+                Mohon tunggu beberapa saat. Berkas media Anda sedang diunggah ke server dan disimpan ke database.
+              </p>
+            </div>
+          </div>
+          
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          ` }} />
+        </div>
+      )}
+
       {/* Superadmin Header */}
       <div className="admin-header">
         <div className="admin-header-container">
