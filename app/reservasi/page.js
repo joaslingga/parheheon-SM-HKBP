@@ -11,6 +11,8 @@ export const metadata = {
   description: "Pesan tiket masuk acara puncak festival Parheheon Sekolah Minggu HKBP Ciputat secara online. Pilih tempat duduk favoritmu!",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ReservasiPage() {
   // 1. Fetch session
   let session = null;

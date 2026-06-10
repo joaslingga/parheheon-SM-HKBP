@@ -17,6 +17,8 @@ const isVideo = (url) => {
   );
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   // 1. Fetch Session from cookie and verify user exists in database
   let session = null;
