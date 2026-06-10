@@ -457,10 +457,16 @@ export async function updateHeaderImageAction(prevState, formData) {
   let imageUrl = formData.get("imageUrl")?.toString().trim();
   const imageFile = formData.get("imageFile");
 
-  // Attempt to save uploaded file
-  const uploadedPath = await saveUploadedFile(imageFile, "header");
-  if (uploadedPath) {
-    imageUrl = uploadedPath;
+  // Deteksi apakah ada file yang dipilih untuk diunggah
+  const hasFile = imageFile && typeof imageFile !== "string" && imageFile.size > 0;
+
+  if (hasFile) {
+    const uploadedPath = await saveUploadedFile(imageFile, "header");
+    if (uploadedPath) {
+      imageUrl = uploadedPath;
+    } else {
+      return { error: "Gagal menyimpan file gambar banner yang diunggah. Silakan periksa folder public/uploads di server." };
+    }
   }
 
   if (!imageUrl) {
@@ -496,13 +502,25 @@ export async function addHighlightAction(prevState, formData) {
   let imageUrl = formData.get("imageUrl")?.toString().trim();
   const imageFile = formData.get("imageFile");
 
-  // Attempt to save uploaded file
-  const uploadedPath = await saveUploadedFile(imageFile, "highlight");
-  if (uploadedPath) {
-    imageUrl = uploadedPath;
+  // 1. Validasi teks wajib (judul & deskripsi)
+  if (!title || !description) {
+    return { error: "Judul dan deskripsi highlight harus diisi." };
   }
 
-  if (!title || !description || !imageUrl) {
+  // 2. Deteksi apakah ada file yang dipilih untuk diunggah
+  const hasFile = imageFile && typeof imageFile !== "string" && imageFile.size > 0;
+
+  if (hasFile) {
+    const uploadedPath = await saveUploadedFile(imageFile, "highlight");
+    if (uploadedPath) {
+      imageUrl = uploadedPath;
+    } else {
+      return { error: "Gagal menyimpan file yang diunggah. Silakan periksa folder public/uploads di server atau coba file lain." };
+    }
+  }
+
+  // 3. Validasi media wajib (URL atau File lokal)
+  if (!imageUrl) {
     return { error: "Semua field highlight harus diisi (silakan masukkan URL gambar atau unggah file)." };
   }
 
@@ -582,10 +600,16 @@ export async function addVotingCandidateAction(prevState, formData) {
     return { error: "Kategori dan nama kandidat harus diisi." };
   }
 
-  // Attempt to save uploaded file
-  const uploadedPath = await saveUploadedFile(imageFile, "candidate");
-  if (uploadedPath) {
-    imageUrl = uploadedPath;
+  // Deteksi apakah ada file yang dipilih untuk diunggah
+  const hasFile = imageFile && typeof imageFile !== "string" && imageFile.size > 0;
+
+  if (hasFile) {
+    const uploadedPath = await saveUploadedFile(imageFile, "candidate");
+    if (uploadedPath) {
+      imageUrl = uploadedPath;
+    } else {
+      return { error: "Gagal menyimpan file gambar kandidat yang diunggah. Silakan periksa folder public/uploads di server." };
+    }
   }
 
   if (!imageUrl) {
@@ -632,10 +656,17 @@ export async function updateVotingCandidateAction(prevState, formData) {
       return { error: "Kandidat tidak ditemukan." };
     }
 
-    // Attempt to save uploaded file
-    const uploadedPath = await saveUploadedFile(imageFile, "candidate");
-    if (uploadedPath) {
-      imageUrl = uploadedPath;
+    // Deteksi apakah ada file yang dipilih untuk diunggah
+    const hasFile = imageFile && typeof imageFile !== "string" && imageFile.size > 0;
+    let uploadedPath = null;
+
+    if (hasFile) {
+      uploadedPath = await saveUploadedFile(imageFile, "candidate");
+      if (uploadedPath) {
+        imageUrl = uploadedPath;
+      } else {
+        return { error: "Gagal menyimpan file gambar kandidat yang diunggah. Silakan periksa folder public/uploads di server." };
+      }
     }
 
     // If imageUrl is not provided and no file uploaded, keep the current one
@@ -684,13 +715,19 @@ export async function updateQuickStatsAction(prevState, formData) {
   let imageUrl = formData.get("stats_imageUrl")?.toString().trim();
   const imageFile = formData.get("stats_imageFile");
 
-  try {
-    // Attempt to save uploaded file locally
+  // Deteksi apakah ada file yang dipilih untuk diunggah
+  const hasFile = imageFile && typeof imageFile !== "string" && imageFile.size > 0;
+
+  if (hasFile) {
     const uploadedPath = await saveUploadedFile(imageFile, "stats_banner");
     if (uploadedPath) {
       imageUrl = uploadedPath;
+    } else {
+      return { error: "Gagal menyimpan file gambar statistik yang diunggah. Silakan periksa folder public/uploads di server." };
     }
+  }
 
+  try {
     if (imageUrl) {
       await db.prepare(`MERGE settings AS target
       USING (SELECT 'stats_image_url' AS [key], ? AS [value]) AS source

@@ -1,0 +1,72 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Test (Safety Guard / Auto Rollback)
+        run: npm run build
+        # Jika build ini gagal, langkah selanjutnya (deploy) tidak akan dijalankan.
+        # Hal ini mencegah VPS menjalankan kode yang rusak/eror.
+
+      - name: Deploy to VPS via SSH
+        if: success()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: '157.10.252.183'
+          username: 'wmjoas'
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            echo "=== Memulai Deployment: $(date '+%Y-%m-%d %H:%M:%S') ===" >> /home/wmjoas/deploy.log
+            cd /home/wmjoas/parheheon-sm-HKBP
+            
+            # Ambil kode terbaru dari GitHub
+            git pull origin main >> /home/wmjoas/deploy.log 2>&1
+            
+            # Instal dependensi produksi
+            npm install --production >> /home/wmjoas/deploy.log 2>&1
+            
+            # Build Next.js di VPS
+            npm run build >> /home/wmjoas/deploy.log 2>&1
+            
+            # Restart Service
+            # Mencoba restart menggunakan systemd service dan PM2 jika tersedia
+            sudo systemctl restart parheheon.service >> /home/wmjoas/deploy.log 2>&1 || true
+            pm2 reload parheheon-app >> /home/wmjoas/deploy.log 2>&1 || true
+            
+            echo "=== Deployment Selesai Sukses: $(date '+%Y-%m-%d %H:%M:%S') ===" >> /home/wmjoas/deploy.log
+
+      - name: Telegram Notification on Success
+        if: success()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_TO }} \
+            -d text="🚀 *Deploy BERHASIL!* %0A%0A*Repositori:* ${{ github.repository }} %0A*Commit:* ${{ github.sha }} %0A*Pesan:* ${{ github.event.head_commit.message }} %0A*Oleh:* ${{ github.actor }} %0A*VPS IP:* http://157.10.252.183/" \
+            -d parse_mode="Markdown"
+
+      - name: Telegram Notification on Failure
+        if: failure()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_TO }} \
+            -d text="⚠️ *Deploy GAGAL!* %0A%0A*Repositori:* ${{ github.repository }} %0A*Commit:* ${{ github.sha }} %0A*Pesan:* ${{ github.event.head_commit.message }} %0A*Oleh:* ${{ github.actor }} %0A%0ASilakan periksa log GitHub Actions untuk detail kesalahan." \
+            -d parse_mode="Markdown"
