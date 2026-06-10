@@ -470,7 +470,7 @@ export async function updateHeaderImageAction(prevState, formData) {
   }
 
   if (!imageUrl) {
-    return { error: "URL Gambar tidak boleh kosong atau silakan pilih file gambar untuk diunggah." };
+    return { error: "Silakan pilih berkas gambar untuk diunggah." };
   }
 
   try {
@@ -519,9 +519,9 @@ export async function addHighlightAction(prevState, formData) {
     }
   }
 
-  // 3. Validasi media wajib (URL atau File lokal)
+  // 3. Validasi media wajib (Unggah berkas)
   if (!imageUrl) {
-    return { error: "Semua field highlight harus diisi (silakan masukkan URL gambar atau unggah file)." };
+    return { error: "Semua field highlight harus diisi (silakan unggah berkas foto/video)." };
   }
 
   try {
@@ -712,31 +712,28 @@ export async function updateQuickStatsAction(prevState, formData) {
     return { error: "Akses ditolak. Hanya Superadmin yang dapat mengubah pengaturan ini." };
   }
 
-  let imageUrl = formData.get("stats_imageUrl")?.toString().trim();
   const imageFile = formData.get("stats_imageFile");
 
   // Deteksi apakah ada file yang dipilih untuk diunggah
   const hasFile = imageFile && typeof imageFile !== "string" && imageFile.size > 0;
 
-  if (hasFile) {
-    const uploadedPath = await saveUploadedFile(imageFile, "stats_banner");
-    if (uploadedPath) {
-      imageUrl = uploadedPath;
-    } else {
-      return { error: "Gagal menyimpan file gambar statistik yang diunggah. Silakan periksa folder public/uploads di server." };
-    }
+  if (!hasFile) {
+    return { error: "Silakan pilih berkas gambar statistik untuk diunggah." };
+  }
+
+  const uploadedPath = await saveUploadedFile(imageFile, "stats_banner");
+  if (!uploadedPath) {
+    return { error: "Gagal menyimpan file gambar statistik yang diunggah. Silakan periksa folder public/uploads di server." };
   }
 
   try {
-    if (imageUrl) {
-      await db.prepare(`MERGE settings AS target
-      USING (SELECT 'stats_image_url' AS [key], ? AS [value]) AS source
-      ON (target.[key] = source.[key])
-      WHEN MATCHED THEN
-          UPDATE SET [value] = source.[value]
-      WHEN NOT MATCHED THEN
-          INSERT ([key], [value]) VALUES (source.[key], source.[value]);`).run(imageUrl);
-    }
+    await db.prepare(`MERGE settings AS target
+    USING (SELECT 'stats_image_url' AS [key], ? AS [value]) AS source
+    ON (target.[key] = source.[key])
+    WHEN MATCHED THEN
+        UPDATE SET [value] = source.[value]
+    WHEN NOT MATCHED THEN
+        INSERT ([key], [value]) VALUES (source.[key], source.[value]);`).run(uploadedPath);
 
     revalidatePath("/");
     revalidatePath("/suadminutama");

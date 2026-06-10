@@ -420,20 +420,7 @@ export default function SuperadminDashboard({
 
               <form onSubmit={handleUpdateHeader} encType="multipart/form-data">
                 <div className="form-group">
-                  <label className="form-label" htmlFor="imageUrl">URL Gambar Banner Utama</label>
-                  <input 
-                    id="imageUrl" 
-                    name="imageUrl" 
-                    type="url" 
-                    defaultValue={currentHeaderImage}
-                    onChange={(e) => setImagePreview(e.target.value)}
-                    className="form-input" 
-                    placeholder="https://example.com/gambar-banner.jpg"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="imageFile">Atau Unggah Gambar dari Local</label>
+                  <label className="form-label" htmlFor="imageFile">Unggah Gambar dari Local</label>
                   <input 
                     id="imageFile" 
                     name="imageFile" 
@@ -479,20 +466,7 @@ export default function SuperadminDashboard({
 
               <form onSubmit={handleUpdateQuickStats} encType="multipart/form-data">
                 <div className="form-group">
-                  <label className="form-label" htmlFor="stats_imageUrl">URL Gambar Banner</label>
-                  <input 
-                    id="stats_imageUrl" 
-                    name="stats_imageUrl" 
-                    type="url" 
-                    defaultValue={statsImageUrl?.startsWith("/uploads/") ? "" : (statsImageUrl || "")}
-                    onChange={(e) => setStatsImagePreview(e.target.value)}
-                    className="form-input" 
-                    placeholder="https://images.unsplash.com/photo-..."
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="stats_imageFile">Atau Unggah Gambar dari Local</label>
+                  <label className="form-label" htmlFor="stats_imageFile">Unggah Gambar dari Local</label>
                   <input 
                     id="stats_imageFile" 
                     name="stats_imageFile" 
@@ -563,18 +537,7 @@ export default function SuperadminDashboard({
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="highlightImageUrl">URL Gambar Acara</label>
-                  <input 
-                    id="highlightImageUrl" 
-                    name="imageUrl" 
-                    type="url" 
-                    className="form-input" 
-                    placeholder="https://images.unsplash.com/photo-..."
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="highlightImageFile">Atau Unggah Gambar/Video dari Local</label>
+                  <label className="form-label" htmlFor="highlightImageFile">Unggah Gambar/Video dari Local</label>
                   <input 
                     id="highlightImageFile" 
                     name="imageFile" 
@@ -590,7 +553,7 @@ export default function SuperadminDashboard({
                     className="form-input" 
                   />
                   <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-                    Gunakan URL gambar/video publik ATAU pilih file dari local untuk diunggah.
+                    Pilih file gambar/video dari komputer lokal Anda untuk diunggah.
                   </small>
                 </div>
 
@@ -996,17 +959,7 @@ export default function SuperadminDashboard({
                 />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="candImageUrl">URL Tautan Foto/Video</label>
-                <input
-                  id="candImageUrl"
-                  name="imageUrl"
-                  type="url"
-                  className="form-input"
-                  placeholder="https://example.com/video-or-foto.mp4"
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="candImageFile">Atau Unggah Berkas Foto/Video</label>
+                <label className="form-label" htmlFor="candImageFile">Unggah Berkas Foto/Video</label>
                 <input
                   id="candImageFile"
                   name="imageFile"
@@ -1108,23 +1061,7 @@ export default function SuperadminDashboard({
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="editCandImageUrl">Tautan URL Foto/Video Baru</label>
-                <input
-                  id="editCandImageUrl"
-                  name="imageUrl"
-                  type="url"
-                  defaultValue={editingCandidate.image_url.startsWith("/uploads/") ? "" : editingCandidate.image_url}
-                  className="form-input"
-                  placeholder="https://example.com/video-or-foto-baru.mp4"
-                />
-                {editingCandidate.image_url.startsWith("/uploads/") && (
-                  <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-                    Media saat ini diunggah secara lokal. Masukkan URL jika ingin menggantinya dengan tautan URL eksternal.
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="editCandImageFile">Atau Unggah Foto/Video Baru dari Berkas</label>
+                <label className="form-label" htmlFor="editCandImageFile">Unggah Foto/Video Baru dari Berkas</label>
                 <input
                   id="editCandImageFile"
                   name="imageFile"
