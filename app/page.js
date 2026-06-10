@@ -90,6 +90,7 @@ export default async function HomePage() {
                     src={item.image_url} 
                     controls 
                     playsInline
+                    preload="metadata"
                     className="highlight-img" 
                     style={{ objectFit: "cover" }}
                   />

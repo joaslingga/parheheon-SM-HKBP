@@ -24,7 +24,8 @@ const isVideo = (url) => {
     cleanUrl.endsWith(".webm") ||
     cleanUrl.endsWith(".ogg") ||
     cleanUrl.endsWith(".mov") ||
-    (url.includes("/uploads/candidate-") && (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".webm")))
+    (url.includes("/uploads/candidate-") && (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".webm"))) ||
+    (url.includes("/uploads/highlight-") && (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mov") || cleanUrl.endsWith(".webm")))
   );
 };
 
@@ -552,7 +553,7 @@ export default function SuperadminDashboard({
                       <div key={item.id} className="highlight-item">
                         <div className="highlight-item-info">
                           {isVid ? (
-                            <video src={item.image_url} controls className="highlight-item-thumb" style={{ objectFit: "cover" }} />
+                            <video src={item.image_url} controls playsInline preload="metadata" className="highlight-item-thumb" style={{ objectFit: "cover" }} />
                           ) : (
                             <img src={item.image_url} alt={item.title} className="highlight-item-thumb" />
                           )}

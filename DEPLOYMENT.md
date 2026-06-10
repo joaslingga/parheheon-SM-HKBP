@@ -74,6 +74,15 @@ Untuk mengarahkan domain/IP ke port aplikasi Next.js (port 3000):
        # Konfigurasi unggahan maksimum untuk menangani video/foto besar
        client_max_body_size 100M;
 
+       # Menyajikan file unggahan (video & foto) langsung via Nginx
+       # Hal ini wajib agar range requests video (seek/putar) didukung penuh oleh browser
+       location /uploads/ {
+           alias /home/wmjoas/parheheon-sm-HKBP/public/uploads/;
+           access_log off;
+           expires max;
+           add_header Cache-Control "public, no-transform";
+       }
+
        location / {
            proxy_pass http://localhost:3000;
            proxy_http_version 1.1;
