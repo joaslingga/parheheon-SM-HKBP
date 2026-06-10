@@ -1461,7 +1461,8 @@ a {
 .seat-booking-wrapper .seating-container {
   width: 100%;
   max-width: 100%;
-  overflow-x: visible !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
   display: block;
 }
